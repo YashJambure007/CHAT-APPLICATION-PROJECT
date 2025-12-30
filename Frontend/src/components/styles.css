@@ -1,0 +1,14 @@
+.messages {
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  scrollbar-width: none;        /* Firefox */
+  padding: 8px 4px;
+  row-gap: 6px;                 /* space between bubbles */
+}
+
+/* Hide scrollbar in Chrome/Edge/WebKit */
+.messages::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}

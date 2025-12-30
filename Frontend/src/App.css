@@ -1,0 +1,42 @@
+@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@300&display=swap");
+
+.App {
+  min-height: 100vh;
+  width: 100%;
+  font-family: "Work Sans", sans-serif;
+
+  /* 🌟 Background Image */
+  background-image: url("D:\mern-chat-app-master\mern-chat-app-master\frontend\src\assets/bg.jpg"); /* Corrected path */
+  background-size: cover;        /* Make the image fill the screen */
+  background-position: center;   /* Center the artwork */
+  background-repeat: no-repeat;  /* Prevent tiling */
+  background-attachment: fixed;  /* Smooth parallax feel */
+  display: block;
+}
+
+/* 🌟 Optional — Smooth frosted glass overlay */
+.App::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.05); /* Light glass effect */
+  backdrop-filter: blur(4px);           /* Frosted effect */
+  z-index: -1;
+}
+
+/* Scrollbar style */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.7);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
