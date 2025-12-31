@@ -45,7 +45,7 @@ const Login = () => {
     if (isVercel) {
       console.log('Detected Vercel deployment');
       // ⚠️ REPLACE THIS WITH YOUR ACTUAL RENDER BACKEND URL
-      return 'https://chat-app-backend-b95z.onrender.com';
+      return 'https://chat-application-project-f6zv.onrender.com';
     }
     
     // 3. Default to localhost for development
