@@ -16,101 +16,62 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// ================= CORS CONFIGURATION (FIXED) =================
-// Define allowed origins explicitly including production URLs
+// ================= CORS CONFIGURATION (SIMPLIFIED) =================
 const allowedOrigins = [
-  "http://localhost:5173",          // Vite dev server
-  "http://localhost:3000",          // Create React App dev server
-  "https://chat-application-project-ecru.vercel.app",  // Your Vercel frontend
-  "https://chat-application-project-ecru.vercel.app/", // With trailing slash
-  process.env.CLIENT_URL,           // From environment variable
-].filter(Boolean); // Remove any undefined/null values
+  "http://localhost:5173",
+  "http://localhost:3000", 
+  "https://chat-application-project-ecru.vercel.app",
+  process.env.CLIENT_URL,
+].filter(Boolean);
 
-// Remove trailing slashes for consistency
-const normalizedOrigins = allowedOrigins.map(origin => 
-  origin.endsWith('/') ? origin.slice(0, -1) : origin
-);
+console.log("🌍 Allowed CORS Origins:", allowedOrigins);
 
-// Remove duplicates
-const uniqueOrigins = [...new Set(normalizedOrigins)];
-
-console.log("Allowed CORS Origins:", uniqueOrigins);
-
-// Enhanced CORS options
-const corsOptions = {
+// Simple CORS configuration
+app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-    if (!origin) {
-      console.log("No origin header (server-to-server request)");
-      return callback(null, true);
-    }
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
     
     // Check if origin is in allowed list
-    const isAllowed = uniqueOrigins.some(allowedOrigin => {
-      // Check exact match or subdomain match
-      return origin === allowedOrigin || 
-             origin.startsWith(allowedOrigin + '/') ||
-             allowedOrigin === '*';
-    });
-    
-    if (isAllowed) {
-      console.log(`CORS allowed for origin: ${origin}`);
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`CORS blocked for origin: ${origin}`);
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      console.log(`❌ CORS blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type", 
-    "Authorization", 
-    "X-Requested-With",
-    "Accept",
-    "Origin"
-  ],
-  exposedHeaders: ["Content-Range", "X-Content-Range"],
-  maxAge: 86400, // 24 hours - cache preflight response
-  optionsSuccessStatus: 204
-};
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+}));
 
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Special handling for preflight requests
+// Handle preflight requests properly
 app.options("*", (req, res) => {
   const origin = req.headers.origin;
-  if (origin && uniqueOrigins.includes(origin)) {
+  if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
   }
+  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Max-Age", "86400");
   res.sendStatus(204);
 });
 
-// Additional headers middleware for all responses
+// Additional CORS headers for all responses
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // Set CORS headers if origin is in allowed list
-  if (origin && uniqueOrigins.includes(origin)) {
+  // Set CORS headers if origin is allowed
+  if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
   }
   
+  res.header("Access-Control-Allow-Credentials", "true");
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
-  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  
-  // Handle preflight
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
   
   next();
 });
@@ -126,7 +87,7 @@ app.get("/", (req, res) => {
     message: "API is running...",
     timestamp: new Date().toISOString(),
     cors: {
-      allowedOrigins: uniqueOrigins,
+      allowedOrigins: allowedOrigins,
       clientUrl: process.env.CLIENT_URL
     }
   });
@@ -151,7 +112,7 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on PORT ${PORT}`);
-  console.log(`🌍 Allowed Origins: ${uniqueOrigins.join(', ')}`);
+  console.log(`🌍 Allowed Origins: ${allowedOrigins.join(', ')}`);
   console.log(`🔗 Client URL from env: ${process.env.CLIENT_URL}`);
   console.log(`📡 Health check: http://localhost:${PORT}/`);
   console.log(`🔍 CORS test: http://localhost:${PORT}/api/cors-test`);
@@ -161,19 +122,12 @@ const server = app.listen(PORT, () => {
 const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
-    origin: function (origin, callback) {
-      // Allow all origins for Socket.IO or implement same logic as above
-      if (!origin || uniqueOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket', 'polling'], // Enable both transports
-  allowEIO3: true // Support older Engine.IO clients
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 /**
