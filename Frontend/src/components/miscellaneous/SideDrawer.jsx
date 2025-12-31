@@ -64,6 +64,27 @@ function SideDrawer() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
 
+  // FIXED: Get API URL for Vercel deployment
+  const getApiUrl = () => {
+    // Check environment variable first
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      return envApiUrl;
+    }
+    
+    // Check if we're on Vercel
+    const isVercel = window.location.hostname.includes('vercel.app');
+    if (isVercel) {
+      // ⚠️ REPLACE THIS WITH YOUR ACTUAL RENDER BACKEND URL
+      return 'https://chat-app-backend-b95z.onrender.com';
+    }
+    
+    // Default to localhost for development
+    return 'http://localhost:5000';
+  };
+
+  const API_URL = getApiUrl();
+
   const logoutHandler = () => {
     toast({
       title: "Logging out...",
@@ -78,7 +99,7 @@ function SideDrawer() {
     }, 500);
   };
 
-  // REAL-TIME SEARCH
+  // REAL-TIME SEARCH - FIXED API CALL
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -93,12 +114,18 @@ function SideDrawer() {
       setLoading(true);
       setShowSuggestions(true);
 
-      const { data } = await axios.get(`/api/user?search=${value}`, {
+      // FIXED: Use API_URL instead of relative path
+      const { data } = await axios.get(`${API_URL}/api/user?search=${value}`, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
 
       setSearchResult(data);
     } catch (error) {
+      console.error('Search error:', {
+        url: `${API_URL}/api/user?search=${value}`,
+        error: error.message
+      });
+      
       toast({
         title: "Search error",
         description: "Failed to search users",
@@ -127,11 +154,14 @@ function SideDrawer() {
     setShowSuggestions(true);
   };
 
+  // FIXED: Access chat API call
   const accessChat = async (userId) => {
     try {
       setLoadingChat(true);
+      
+      // FIXED: Use API_URL instead of relative path
       const { data } = await axios.post(
-        "/api/chat",
+        `${API_URL}/api/chat`,
         { userId },
         {
           headers: {
@@ -159,6 +189,11 @@ function SideDrawer() {
         position: "bottom-right",
       });
     } catch (error) {
+      console.error('Access chat error:', {
+        url: `${API_URL}/api/chat`,
+        error: error.message
+      });
+      
       toast({
         title: "Error opening chat",
         description: error.message,
@@ -226,6 +261,10 @@ function SideDrawer() {
             letterSpacing="-1px"
           >
             NexaChat
+          </Text>
+          {/* Debug info - remove in production */}
+          <Text fontSize="xs" color="rgba(255,255,255,0.5)" fontFamily="mono">
+            API: {API_URL.includes('localhost') ? 'Local' : 'Render'}
           </Text>
         </Box>
 
@@ -559,9 +598,9 @@ function SideDrawer() {
                       key={u._id}
                       onClick={() => accessChat(u._id)}
                       cursor="pointer"
-                      bg="rgba(15,23,42,0.95)"          // dark card bg
+                      bg="rgba(15,23,42,0.95)"
                       _hover={{
-                        bg: "rgba(30,64,175,0.95)",     // blue hover
+                        bg: "rgba(30,64,175,0.95)",
                         transform: "translateY(-2px)",
                       }}
                       borderRadius="lg"
