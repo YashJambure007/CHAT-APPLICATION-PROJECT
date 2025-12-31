@@ -26,6 +26,11 @@ import { ChatState } from "../../Context/ChatProvider";
 import UserBadgeItem from "../userAvatar/UserBadgeItem";
 import UserListItem from "../userAvatar/UserListItem";
 
+// ⭐⭐⭐ ADD THIS LINE HERE ⭐⭐⭐
+const API_URL = window.location.hostname.includes('vercel.app') 
+  ? 'https://chat-app-backend-b95z.onrender.com'  // ⚠️ REPLACE WITH YOUR RENDER URL
+  : 'http://localhost:5000';
+
 const GroupChatModal = ({ children }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -64,7 +69,8 @@ const GroupChatModal = ({ children }) => {
     try {
       setLoading(true);
 
-      const { data } = await axios.get(`/api/user?search=${query}`, {
+      // ⭐⭐⭐ FIX 1: Add API_URL here ⭐⭐⭐
+      const { data } = await axios.get(`${API_URL}/api/user?search=${query}`, {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
@@ -107,8 +113,9 @@ const GroupChatModal = ({ children }) => {
     try {
       setCreatingChat(true);
 
+      // ⭐⭐⭐ FIX 2: Add API_URL here ⭐⭐⭐
       const { data } = await axios.post(
-        "/api/chat/group",
+        `${API_URL}/api/chat/group`,
         {
           name: groupChatName,
           users: JSON.stringify(selectedUsers.map((u) => u._id)),

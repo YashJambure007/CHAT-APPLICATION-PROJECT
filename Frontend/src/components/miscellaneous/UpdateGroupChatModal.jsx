@@ -29,6 +29,11 @@ import { ChatState } from "../../Context/ChatProvider.jsx";
 import UserBadgeItem from "../userAvatar/UserBadgeItem.jsx";
 import UserListItem from "../userAvatar/UserListItem.jsx";
 
+// ⭐⭐⭐ ADD THIS LINE HERE ⭐⭐⭐
+const API_URL = window.location.hostname.includes('vercel.app') 
+  ? 'https://chat-app-backend-b95z.onrender.com'  // ⚠️ REPLACE WITH YOUR RENDER URL
+  : 'http://localhost:5000';
+
 const UpdateGroupChatModal = ({
   fetchMessages,
   fetchAgain,
@@ -59,7 +64,8 @@ const UpdateGroupChatModal = ({
 
     try {
       setLoading(true);
-      const { data } = await axios.get(`/api/user?search=${query}`, {
+      // ⭐⭐⭐ FIX 1: Add API_URL here ⭐⭐⭐
+      const { data } = await axios.get(`${API_URL}/api/user?search=${query}`, {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
@@ -94,8 +100,9 @@ const UpdateGroupChatModal = ({
 
     try {
       setRenameLoading(true);
+      // ⭐⭐⭐ FIX 2: Add API_URL here ⭐⭐⭐
       const { data } = await axios.put(
-        "/api/chat/rename",
+        `${API_URL}/api/chat/rename`,
         {
           chatId: selectedChat._id,
           chatName: groupChatName,
@@ -157,8 +164,9 @@ const UpdateGroupChatModal = ({
 
     try {
       setLoading(true);
+      // ⭐⭐⭐ FIX 3: Add API_URL here ⭐⭐⭐
       const { data } = await axios.put(
-        "/api/chat/groupadd",
+        `${API_URL}/api/chat/groupadd`,
         {
           chatId: selectedChat._id,
           userId: userToAdd._id,
@@ -213,8 +221,9 @@ const UpdateGroupChatModal = ({
 
     try {
       setRemovingUser(true);
+      // ⭐⭐⭐ FIX 4: Add API_URL here ⭐⭐⭐
       const { data } = await axios.put(
-        "/api/chat/groupremove",
+        `${API_URL}/api/chat/groupremove`,
         {
           chatId: selectedChat._id,
           userId: userToRemove._id,

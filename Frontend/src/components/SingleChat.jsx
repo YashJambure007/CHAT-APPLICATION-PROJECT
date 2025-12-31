@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import {
   Box,
   Text,
@@ -43,9 +44,14 @@ import { ChatState } from "../Context/ChatProvider";
 
 import animationData from "../animations/typing.json";
 
+// ⭐⭐⭐ ADD THIS LINE HERE ⭐⭐⭐
+const API_URL = window.location.hostname.includes('vercel.app') 
+  ? 'https://chat-app-backend-b95z.onrender.com'  // ⚠️ REPLACE WITH YOUR RENDER URL
+  : 'http://localhost:5000';
+
 let selectedChatCompare;
 
-const SingleChat = ({  setFetchAgain }) => {
+const SingleChat = ({ setFetchAgain }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
@@ -80,8 +86,9 @@ const SingleChat = ({  setFetchAgain }) => {
         },
       };
 
+      // ⭐⭐⭐ FIX 1: Add API_URL here ⭐⭐⭐
       const { data } = await axios.get(
-        `/api/message/${selectedChat._id}`,
+        `${API_URL}/api/message/${selectedChat._id}`,  // ✅ CHANGED
         config
       );
 
@@ -117,8 +124,9 @@ const SingleChat = ({  setFetchAgain }) => {
         const messageToSend = newMessage;
         setNewMessage("");
 
+        // ⭐⭐⭐ FIX 2: Add API_URL here ⭐⭐⭐
         const { data } = await axios.post(
-          "/api/message",
+          `${API_URL}/api/message`,  // ✅ CHANGED
           {
             content: messageToSend,
             chatId: selectedChat._id,
@@ -157,8 +165,9 @@ const SingleChat = ({  setFetchAgain }) => {
       const messageToSend = newMessage;
       setNewMessage("");
 
+      // ⭐⭐⭐ FIX 3: Add API_URL here ⭐⭐⭐
       const { data } = await axios.post(
-        "/api/message",
+        `${API_URL}/api/message`,  // ✅ CHANGED
         {
           content: messageToSend,
           chatId: selectedChat._id,
@@ -230,8 +239,9 @@ const SingleChat = ({  setFetchAgain }) => {
         },
       };
 
+      // ⭐⭐⭐ FIX 4: Add API_URL here ⭐⭐⭐
       const { data } = await axios.post(
-        "/api/message",
+        `${API_URL}/api/message`,  // ✅ CHANGED
         {
           content: uploaded.secure_url,
           chatId: selectedChat._id,
@@ -313,7 +323,6 @@ const SingleChat = ({  setFetchAgain }) => {
     }, timerLength);
   };
 
-  // ✅ MOVE THIS INSIDE THE RETURN - ONLY CALL WHEN selectedChat EXISTS
   const getSenderInfo = () => {
     if (!selectedChat) {
       return null;
@@ -337,7 +346,6 @@ const SingleChat = ({  setFetchAgain }) => {
     }
   };
 
-  // ✅ CALL IT HERE INSIDE THE CONDITIONAL
   const senderInfo = selectedChat ? getSenderInfo() : null;
 
   return (
@@ -468,11 +476,7 @@ const SingleChat = ({  setFetchAgain }) => {
                   size="sm"
                 />
               </Tooltip>
-
-              
             </HStack>
-
-           
           </Box>
 
           {/* ============ MESSAGES SECTION ============ */}

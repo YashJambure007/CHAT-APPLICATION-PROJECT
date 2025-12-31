@@ -19,6 +19,11 @@ import ChatLoading from "./ChatLoading";
 import GroupChatModal from "./miscellaneous/GroupChatModal";
 import { ChatState } from "../Context/ChatProvider";
 
+// ⭐⭐⭐ ADD THIS LINE HERE ⭐⭐⭐
+const API_URL = window.location.hostname.includes('vercel.app') 
+  ? 'https://chat-app-backend-b95z.onrender.com'  // ⚠️ REPLACE WITH YOUR RENDER URL
+  : 'http://localhost:5000';
+
 const MyChats = ({ fetchAgain }) => {
   const [loggedUser, setLoggedUser] = useState(null);
 
@@ -41,7 +46,8 @@ const MyChats = ({ fetchAgain }) => {
         },
       };
 
-      const { data } = await axios.get("/api/chat", config);
+      // ⭐⭐⭐ FIX: Add API_URL here ⭐⭐⭐
+      const { data } = await axios.get(`${API_URL}/api/chat`, config);  // ✅ CHANGED
       setChats(data);
     } catch (error) {
       toast({
