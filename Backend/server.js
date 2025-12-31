@@ -16,62 +16,70 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// ================= CORS CONFIGURATION (SIMPLIFIED) =================
+// ================= CORS ULTIMATE FIX =================
+// First, add debug logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('Origin:', req.headers.origin);
+  console.log('User-Agent:', req.headers['user-agent']);
+  next();
+});
+
+// Define allowed origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000", 
   "https://chat-application-project-ecru.vercel.app",
+  "https://chat-application-project-ecru.vercel.app/",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
-console.log("🌍 Allowed CORS Origins:", allowedOrigins);
+console.log("🌍 CORS Configuration:");
+console.log("- Allowed Origins:", allowedOrigins);
+console.log("- CLIENT_URL from env:", process.env.CLIENT_URL);
 
-// Simple CORS configuration
+// ULTIMATE CORS FIX: Allow all during debugging
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // During debugging, allow all origins
+    console.log(`🔍 CORS Check - Origin: ${origin}`);
+    callback(null, true);
     
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log(`❌ CORS blocked: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Uncomment after debugging:
+    // if (!origin || allowedOrigins.includes(origin)) {
+    //   callback(null, true);
+    // } else {
+    //   callback(new Error('Not allowed by CORS'));
+    // }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  maxAge: 86400,
 }));
 
-// Handle preflight requests properly
-app.options("*", (req, res) => {
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  res.sendStatus(204);
-});
+// Handle preflight requests - SIMPLIFIED
+app.options("*", cors());
 
-// Additional CORS headers for all responses
+// Add CORS headers manually for all responses
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // Set CORS headers if origin is allowed
-  if (origin && allowedOrigins.includes(origin)) {
+  // Allow any origin during debugging
+  if (origin) {
     res.header("Access-Control-Allow-Origin", origin);
   }
   
   res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+  
+  // Handle preflight immediately
+  if (req.method === "OPTIONS") {
+    console.log("🛫 Handling preflight request");
+    return res.status(200).end();
+  }
   
   next();
 });
@@ -88,18 +96,22 @@ app.get("/", (req, res) => {
     timestamp: new Date().toISOString(),
     cors: {
       allowedOrigins: allowedOrigins,
-      clientUrl: process.env.CLIENT_URL
+      clientUrl: process.env.CLIENT_URL,
+      headers: req.headers
     }
   });
 });
 
 // CORS test endpoint
 app.get("/api/cors-test", (req, res) => {
+  console.log("🔧 CORS Test endpoint hit");
   res.status(200).json({
     success: true,
     message: "CORS is working!",
     origin: req.headers.origin,
-    timestamp: new Date().toISOString()
+    headers: req.headers,
+    timestamp: new Date().toISOString(),
+    serverTime: Date.now()
   });
 });
 
@@ -122,7 +134,7 @@ const server = app.listen(PORT, () => {
 const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
-    origin: allowedOrigins,
+    origin: "*", // Allow all for now
     methods: ["GET", "POST"],
     credentials: true
   },
