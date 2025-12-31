@@ -31,16 +31,37 @@ const Login = () => {
 
   const handleClick = () => setShow(!show);
 
-  // Get API URL from environment variable
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  // FIXED: Proper API URL detection
+  const getApiUrl = () => {
+    // 1. Check environment variable first
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      console.log('Using VITE_API_URL from environment:', envApiUrl);
+      return envApiUrl;
+    }
+    
+    // 2. Check if we're on Vercel
+    const isVercel = window.location.hostname.includes('vercel.app');
+    if (isVercel) {
+      console.log('Detected Vercel deployment');
+      // ⚠️ REPLACE THIS WITH YOUR ACTUAL RENDER BACKEND URL
+      return 'https://chat-app-backend-b95z.onrender.com';
+    }
+    
+    // 3. Default to localhost for development
+    console.log('Using local development URL');
+    return 'http://localhost:5000';
+  };
+
+  const API_URL = getApiUrl();
   
-  // Log for debugging (remove in production)
-  console.log('Environment:', {
+  // Log for debugging
+  console.log('Environment Info:', {
     mode: import.meta.env.MODE,
     apiUrl: API_URL,
     viteApiUrl: import.meta.env.VITE_API_URL,
     hostname: window.location.hostname,
-    fullUrl: window.location.href
+    isVercel: window.location.hostname.includes('vercel.app')
   });
 
   const submitHandler = async () => {
@@ -59,16 +80,18 @@ const Login = () => {
     }
 
     try {
-      console.log("Login attempt to:", `${API_URL}/api/user/login`);
+      const fullUrl = `${API_URL}/api/user/login`;
+      console.log("🌐 Login attempt to:", fullUrl);
       
       const { data } = await axios.post(
-        `${API_URL}/api/user/login`,
+        fullUrl,
         { email, password },
         {
           headers: {
             "Content-Type": "application/json",
           },
           withCredentials: true,
+          timeout: 15000,
         }
       );
 
@@ -84,29 +107,31 @@ const Login = () => {
       localStorage.setItem("userInfo", JSON.stringify(data));
       navigate("/chats");
     } catch (error) {
-      console.error("Login error details:", {
+      console.error("❌ Login error:", {
         message: error.message,
-        response: error.response?.data,
+        code: error.code,
         status: error.response?.status,
-        url: `${API_URL}/api/user/login`,
-        config: error.config
+        url: error.config?.url,
+        backendUrl: API_URL,
       });
       
-      let errorMessage = "Something went wrong";
+      let errorMessage = "Login failed";
       
       if (error.code === 'ERR_NETWORK') {
-        errorMessage = `Cannot connect to server. Please check if the backend is running at ${API_URL}`;
+        errorMessage = `Cannot connect to backend server at ${API_URL}. Please check if the backend is running.`;
       } else if (error.response?.status === 404) {
-        errorMessage = `Server endpoint not found. Backend might not be running at ${API_URL}`;
+        errorMessage = `Backend endpoint not found at ${API_URL}. The server might be down or URL is incorrect.`;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       toast({
         title: "Login Failed",
         description: errorMessage,
         status: "error",
-        duration: 5000,
+        duration: 7000,
         isClosable: true,
         position: "bottom",
       });
@@ -215,9 +240,11 @@ const Login = () => {
             <Text fontSize="sm" color="gray.400">
               Sign in to continue your conversations.
             </Text>
-            {/* Environment indicator - remove in production */}
+            {/* Environment indicator */}
             <Text fontSize="xs" color="gray.500" mt={1}>
-              {import.meta.env.MODE === 'development' ? '🛠️ Development Mode' : '🚀 Production Mode'}
+              {window.location.hostname.includes('vercel.app') 
+                ? '🚀 Production (Vercel)' 
+                : '🛠️ Development (Local)'}
             </Text>
           </Box>
         </HStack>
@@ -357,31 +384,49 @@ const Login = () => {
             Secured with end‑to‑end encryption for your conversations.
           </Text>
           
-          {/* Debug info - remove in production */}
-          {import.meta.env.MODE === 'development' && (
-            <Box
-              mt={4}
-              p={3}
-              borderRadius="md"
-              bg="whiteAlpha.100"
-              border="1px dashed"
-              borderColor="pink.400"
-            >
-              <Text fontSize="xs" color="gray.300" mb={1} fontWeight="medium">
-                🐛 Debug Info (Development Only):
-              </Text>
-              <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                • API URL: {API_URL}
-              </Text>
-              <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                • VITE_API_URL: {import.meta.env.VITE_API_URL || 'Not set'}
-              </Text>
-              <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                • Mode: {import.meta.env.MODE}
-              </Text>
-            </Box>
-          )}
+          {/* Debug info - visible in production for troubleshooting */}
+          <Box
+            mt={4}
+            p={3}
+            borderRadius="md"
+            bg="whiteAlpha.100"
+            border="1px dashed"
+            borderColor="pink.400"
+          >
+            <Text fontSize="xs" color="gray.300" mb={1} fontWeight="medium">
+              🔧 Connection Info:
+            </Text>
+            <Text fontSize="xs" color="gray.400" fontFamily="mono">
+              • Backend: {API_URL}
+            </Text>
+            <Text fontSize="xs" color="gray.400" fontFamily="mono">
+              • Frontend: {window.location.hostname}
+            </Text>
+            <Text fontSize="xs" color="gray.400" fontFamily="mono">
+              • Mode: {import.meta.env.MODE}
+            </Text>
+          </Box>
         </VStack>
+      </Box>
+
+      {/* Debug overlay - shows API URL in corner */}
+      <Box
+        position="fixed"
+        bottom="10px"
+        right="10px"
+        bg="blackAlpha.800"
+        color="white"
+        p={2}
+        borderRadius="md"
+        fontSize="xs"
+        zIndex={1000}
+        opacity={0.9}
+        fontFamily="mono"
+        maxW="300px"
+      >
+        <Text>🌐 API: {API_URL}</Text>
+        <Text>🔗 Host: {window.location.hostname}</Text>
+        <Text>⚡ Env Var: {import.meta.env.VITE_API_URL || 'Not set'}</Text>
       </Box>
 
       {/* keyframes injected via global style */}
