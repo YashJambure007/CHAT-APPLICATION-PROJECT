@@ -31,6 +31,25 @@ const Login = () => {
 
   const handleClick = () => setShow(!show);
 
+  // Define API URL based on environment
+  const getApiUrl = () => {
+    // If using Vite environment variable
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+    
+    // Check if we're in development (localhost)
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
+    
+    // Return appropriate URL - REPLACE with your actual Render backend URL
+    return isLocalhost 
+      ? 'http://localhost:5000' 
+      : 'https://your-backend.onrender.com'; // ⚠️ CHANGE THIS TO YOUR RENDER URL
+  };
+
+  const API_URL = getApiUrl();
+
   const submitHandler = async () => {
     setLoading(true);
 
@@ -47,13 +66,16 @@ const Login = () => {
     }
 
     try {
+      console.log("Attempting login to:", `${API_URL}/api/user/login`);
+      
       const { data } = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/user/login`,
+        `${API_URL}/api/user/login`,
         { email, password },
         {
           headers: {
             "Content-Type": "application/json",
           },
+          withCredentials: true, // Important for CORS with credentials
         }
       );
 
@@ -69,10 +91,21 @@ const Login = () => {
       localStorage.setItem("userInfo", JSON.stringify(data));
       navigate("/chats");
     } catch (error) {
+      console.error("Login error:", error);
+      
+      // Log more details about the error
+      if (error.response) {
+        console.error("Response error:", error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error("Request error:", error.request);
+      }
+      
       toast({
         title: "Login Failed",
         description:
-          error.response?.data?.message || "Something went wrong",
+          error.response?.data?.message || 
+          error.message || 
+          "Failed to connect to server",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -81,6 +114,20 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Guest credentials handler
+  const handleGuestCredentials = () => {
+    setEmail("guest@example.com");
+    setPassword("123456");
+    toast({
+      title: "Guest credentials loaded",
+      description: "Click Login to continue",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+      position: "bottom",
+    });
   };
 
   return (
@@ -97,7 +144,6 @@ const Login = () => {
         inset: 0,
         bgGradient:
           "linear(to-br, #0f172a, #020617, #1e293b, #0f172a)",
-        // animated gradient background
         backgroundSize: "300% 300%",
         animation: "gradientShift 18s ease infinite",
         zIndex: -2,
@@ -170,6 +216,10 @@ const Login = () => {
             </Heading>
             <Text fontSize="sm" color="gray.400">
               Sign in to continue your conversations.
+            </Text>
+            {/* Debug info - remove in production */}
+            <Text fontSize="xs" color="gray.600" mt={1}>
+              API: {API_URL}
             </Text>
           </Box>
         </HStack>
@@ -285,10 +335,7 @@ const Login = () => {
             width="100%"
             borderRadius="full"
             height="44px"
-            onClick={() => {
-              setEmail("guest@example.com");
-              setPassword("123456");
-            }}
+            onClick={handleGuestCredentials}
             borderColor="whiteAlpha.400"
             color="gray.100"
             _hover={{
@@ -311,10 +358,33 @@ const Login = () => {
           >
             Secured with end‑to‑end encryption for your conversations.
           </Text>
+          
+          {/* Debug section - remove in production */}
+          <Box
+            mt={4}
+            p={3}
+            borderRadius="md"
+            bg="whiteAlpha.100"
+            border="1px dashed"
+            borderColor="whiteAlpha.200"
+          >
+            <Text fontSize="xs" color="gray.400" mb={1}>
+              Debug Info:
+            </Text>
+            <Text fontSize="xs" color="gray.500" fontFamily="mono">
+              • API URL: {API_URL}
+            </Text>
+            <Text fontSize="xs" color="gray.500" fontFamily="mono">
+              • Environment: {import.meta.env.MODE}
+            </Text>
+            <Text fontSize="xs" color="gray.500" fontFamily="mono">
+              • Hostname: {window.location.hostname}
+            </Text>
+          </Box>
         </VStack>
       </Box>
 
-      {/* keyframes injected via global style (can be moved to theme.css) */}
+      {/* keyframes injected via global style */}
       <style>
         {`
           @keyframes gradientShift {
