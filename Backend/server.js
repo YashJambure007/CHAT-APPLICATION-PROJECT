@@ -1,7 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+import cors from "cors";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
@@ -10,86 +9,80 @@ import chatRoutes from "./routes/chatRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
+// ================= CONFIG =================
 dotenv.config();
 connectDB();
 
 const app = express();
 app.use(express.json());
 
-// Routes
+// ================= CORS (PRODUCTION SAFE) =================
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL, // Vercel URL
+    credentials: true,
+  })
+);
+
+// ================= ROUTES =================
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
-// Fix __dirname in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ================= HEALTH CHECK =================
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
 
-// Production deployment (optional)
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
-
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
-  });
-} else {
-  app.get("/", (req, res) => {
-    res.send("API is running..");
-  });
-}
-
-// Error handling
+// ================= ERROR HANDLING =================
 app.use(notFound);
 app.use(errorHandler);
 
+// ================= SERVER =================
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on PORT ${PORT}`.yellow.bold);
+  console.log(`Server running on PORT ${PORT}`);
 });
 
 // ================= SOCKET.IO =================
 const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
-    origin: "http://localhost:5173", // Vite port
+    origin: process.env.CLIENT_URL, // Vercel URL
+    methods: ["GET", "POST"],
   },
 });
 
 /**
- * ✅ ONLINE USERS STORE
- * key   → userId
- * value → socketId
+ * ONLINE USERS MAP
+ * key   -> userId
+ * value -> socketId
  */
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("Connected to socket.io");
+  console.log("Socket connected:", socket.id);
 
-  // ================= USER SETUP =================
+  // ========== USER SETUP ==========
   socket.on("setup", (userData) => {
     socket.join(userData._id);
-
-    // ✅ ADD USER TO ONLINE LIST
     onlineUsers.set(userData._id, socket.id);
 
-    // 🔥 BROADCAST ONLINE USERS
     io.emit("online users", Array.from(onlineUsers.keys()));
-
     socket.emit("connected");
   });
 
-  // ================= JOIN CHAT =================
+  // ========== JOIN CHAT ==========
   socket.on("join chat", (room) => {
     socket.join(room);
-    console.log("User Joined Room: " + room);
   });
 
-  // ================= TYPING =================
+  // ========== TYPING ==========
   socket.on("typing", (room) => socket.in(room).emit("typing"));
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  // ================= NEW MESSAGE =================
+  // ========== NEW MESSAGE ==========
   socket.on("new message", (newMessageReceived) => {
     const chat = newMessageReceived.chat;
 
@@ -101,9 +94,8 @@ io.on("connection", (socket) => {
     });
   });
 
-  // ================= DISCONNECT =================
+  // ========== DISCONNECT ==========
   socket.on("disconnect", () => {
-    // 🔥 REMOVE USER FROM ONLINE LIST
     for (const [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);
@@ -111,13 +103,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    // 🔥 BROADCAST UPDATED ONLINE USERS
     io.emit("online users", Array.from(onlineUsers.keys()));
-
-    console.log("User disconnected");
-  });
-
-  socket.off("setup", () => {
-    socket.leave();
+    console.log("Socket disconnected:", socket.id);
   });
 });
