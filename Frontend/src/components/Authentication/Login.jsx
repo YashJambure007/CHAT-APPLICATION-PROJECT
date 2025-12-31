@@ -31,24 +31,17 @@ const Login = () => {
 
   const handleClick = () => setShow(!show);
 
-  // Define API URL based on environment
-  const getApiUrl = () => {
-    // If using Vite environment variable
-    if (import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
-    }
-    
-    // Check if we're in development (localhost)
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1';
-    
-    // Return appropriate URL - REPLACE with your actual Render backend URL
-    return isLocalhost 
-      ? 'http://localhost:5000' 
-      : 'https://your-backend.onrender.com'; // ⚠️ CHANGE THIS TO YOUR RENDER URL
-  };
-
-  const API_URL = getApiUrl();
+  // Get API URL from environment variable
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  
+  // Log for debugging (remove in production)
+  console.log('Environment:', {
+    mode: import.meta.env.MODE,
+    apiUrl: API_URL,
+    viteApiUrl: import.meta.env.VITE_API_URL,
+    hostname: window.location.hostname,
+    fullUrl: window.location.href
+  });
 
   const submitHandler = async () => {
     setLoading(true);
@@ -66,7 +59,7 @@ const Login = () => {
     }
 
     try {
-      console.log("Attempting login to:", `${API_URL}/api/user/login`);
+      console.log("Login attempt to:", `${API_URL}/api/user/login`);
       
       const { data } = await axios.post(
         `${API_URL}/api/user/login`,
@@ -75,7 +68,7 @@ const Login = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          withCredentials: true, // Important for CORS with credentials
+          withCredentials: true,
         }
       );
 
@@ -91,21 +84,27 @@ const Login = () => {
       localStorage.setItem("userInfo", JSON.stringify(data));
       navigate("/chats");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: `${API_URL}/api/user/login`,
+        config: error.config
+      });
       
-      // Log more details about the error
-      if (error.response) {
-        console.error("Response error:", error.response.status, error.response.data);
-      } else if (error.request) {
-        console.error("Request error:", error.request);
+      let errorMessage = "Something went wrong";
+      
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = `Cannot connect to server. Please check if the backend is running at ${API_URL}`;
+      } else if (error.response?.status === 404) {
+        errorMessage = `Server endpoint not found. Backend might not be running at ${API_URL}`;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
       
       toast({
         title: "Login Failed",
-        description:
-          error.response?.data?.message || 
-          error.message || 
-          "Failed to connect to server",
+        description: errorMessage,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -116,7 +115,6 @@ const Login = () => {
     }
   };
 
-  // Guest credentials handler
   const handleGuestCredentials = () => {
     setEmail("guest@example.com");
     setPassword("123456");
@@ -217,9 +215,9 @@ const Login = () => {
             <Text fontSize="sm" color="gray.400">
               Sign in to continue your conversations.
             </Text>
-            {/* Debug info - remove in production */}
-            <Text fontSize="xs" color="gray.600" mt={1}>
-              API: {API_URL}
+            {/* Environment indicator - remove in production */}
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              {import.meta.env.MODE === 'development' ? '🛠️ Development Mode' : '🚀 Production Mode'}
             </Text>
           </Box>
         </HStack>
@@ -359,28 +357,30 @@ const Login = () => {
             Secured with end‑to‑end encryption for your conversations.
           </Text>
           
-          {/* Debug section - remove in production */}
-          <Box
-            mt={4}
-            p={3}
-            borderRadius="md"
-            bg="whiteAlpha.100"
-            border="1px dashed"
-            borderColor="whiteAlpha.200"
-          >
-            <Text fontSize="xs" color="gray.400" mb={1}>
-              Debug Info:
-            </Text>
-            <Text fontSize="xs" color="gray.500" fontFamily="mono">
-              • API URL: {API_URL}
-            </Text>
-            <Text fontSize="xs" color="gray.500" fontFamily="mono">
-              • Environment: {import.meta.env.MODE}
-            </Text>
-            <Text fontSize="xs" color="gray.500" fontFamily="mono">
-              • Hostname: {window.location.hostname}
-            </Text>
-          </Box>
+          {/* Debug info - remove in production */}
+          {import.meta.env.MODE === 'development' && (
+            <Box
+              mt={4}
+              p={3}
+              borderRadius="md"
+              bg="whiteAlpha.100"
+              border="1px dashed"
+              borderColor="pink.400"
+            >
+              <Text fontSize="xs" color="gray.300" mb={1} fontWeight="medium">
+                🐛 Debug Info (Development Only):
+              </Text>
+              <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                • API URL: {API_URL}
+              </Text>
+              <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                • VITE_API_URL: {import.meta.env.VITE_API_URL || 'Not set'}
+              </Text>
+              <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                • Mode: {import.meta.env.MODE}
+              </Text>
+            </Box>
+          )}
         </VStack>
       </Box>
 
