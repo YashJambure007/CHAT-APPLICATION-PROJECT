@@ -16,11 +16,27 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// ================= CORS (PRODUCTION SAFE) =================
+// ================= CORS (LOCAL + PROD) =================
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL,
+];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL, // Vercel URL
+    origin: function (origin, callback) {
+      // allow server-to-server & Postman
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -29,7 +45,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
-// ================= HEALTH CHECK =================
+// ================= HEALTH =================
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
@@ -49,43 +65,35 @@ const server = app.listen(PORT, () => {
 const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
-    origin: process.env.CLIENT_URL, // Vercel URL
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
 
 /**
  * ONLINE USERS MAP
- * key   -> userId
- * value -> socketId
  */
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
-  // ========== USER SETUP ==========
   socket.on("setup", (userData) => {
     socket.join(userData._id);
     onlineUsers.set(userData._id, socket.id);
-
     io.emit("online users", Array.from(onlineUsers.keys()));
     socket.emit("connected");
   });
 
-  // ========== JOIN CHAT ==========
   socket.on("join chat", (room) => {
     socket.join(room);
   });
 
-  // ========== TYPING ==========
   socket.on("typing", (room) => socket.in(room).emit("typing"));
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  // ========== NEW MESSAGE ==========
   socket.on("new message", (newMessageReceived) => {
     const chat = newMessageReceived.chat;
-
     if (!chat?.users) return;
 
     chat.users.forEach((user) => {
@@ -94,7 +102,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // ========== DISCONNECT ==========
   socket.on("disconnect", () => {
     for (const [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
@@ -102,8 +109,6 @@ io.on("connection", (socket) => {
         break;
       }
     }
-
     io.emit("online users", Array.from(onlineUsers.keys()));
-    console.log("Socket disconnected:", socket.id);
   });
 });
